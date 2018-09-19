@@ -1,3 +1,20 @@
+{-|
+Module      : LightsOut
+Description : Solver for Lights Out puzzle
+Copyright   : (c) Eric Mertens, 2018
+License     : ISC
+Maintainer  : emertens@gmail.com
+
+https://en.wikipedia.org/wiki/Lights_Out_(game)
+
+This module implements a solver for the Lights Out game. The solver
+works by encoding the lights out problem in terms of boolean satisfiability
+using the Ersatz library.
+
+This module does not attempt to produce a solution with the minimal number
+of button presses. This enhancement is left as an exercise for the reader!
+
+-}
 module LightsOut where
 
 -- base
@@ -14,6 +31,7 @@ import           Ersatz.Prelude
 
 ------------------------------------------------------------------------
 
+-- | Specification of a Lights Out puzzle
 data LightsOut = LightsOut
   { dimensions :: Dimensions
   , lightsOn   :: Set Coord }
@@ -29,26 +47,35 @@ exampleLightsOut = parsePuzzle
 
 unsolvableLightsOut :: LightsOut
 unsolvableLightsOut = parsePuzzle
-  "*..\n\
-  \*..\n"
+  "*....\n\
+  \*....\n\
+  \.....\n\
+  \.....\n\
+  \.....\n"
 
 ------------------------------------------------------------------------
 
-data Coord = C Int Int
+-- | Grid coordinate
+data Coord = C Int Int -- ^ column row
   deriving (Eq, Ord, Show, Read)
 
-neighborhood :: Coord -> [Coord]
+-- | Cardinal direction neighborhood for a coordinate. Results include
+-- the given coordinate.
+neighborhood ::
+  Coord   {- ^ coordinate                     -} ->
+  [Coord] {- ^ north, west, self, east, south -}
 neighborhood (C x y) =
-  [                C x (y-1)
+  [            C x (y-1)
   , C (x-1) y, C x y    , C (x+1) y
-  ,                C x (y+1)
-  ]
+  ,            C x (y+1)]
 
 ------------------------------------------------------------------------
 
+-- | Board dimensions
 data Dimensions = Dimensions { dimWidth, dimHeight :: Int }
   deriving (Eq, Ord, Show, Read)
 
+-- | Generate a list of all coordinates in a board of the given size.
 dimCoords :: Dimensions -> [Coord]
 dimCoords (Dimensions w h) = [ C x y | x <- [1..w], y <- [1..h] ]
 
@@ -80,8 +107,6 @@ isValidSolution puzzle vars = allOff
 
     isClicked    c = Map.findWithDefault false c vars
 
-    -- interesting thing to implement
---    isOn         c = error "TODO: isValidSolution"
     isOn         x = foldl xor (initialState x)
                    $ map isClicked
                    $ neighborhood x
@@ -114,6 +139,8 @@ lightsOut puzzle =
 
 ------------------------------------------------------------------------
 
+-- | Parse a lights out puzzle encoded as lines of @.@ for off and
+-- @*@ for on.
 parsePuzzle :: String -> LightsOut
 parsePuzzle input = LightsOut (Dimensions w h) (Set.fromList coords)
   where
@@ -125,6 +152,7 @@ parsePuzzle input = LightsOut (Dimensions w h) (Set.fromList coords)
                      , (x,'*') <- zip [1..] row ]
 
 
+-- | Render a lights out puzzle using @.@ and @*@ as in 'parsePuzzle'.
 renderSolution :: Dimensions -> Map Coord Bool -> String
 renderSolution dim coords =
   unlines

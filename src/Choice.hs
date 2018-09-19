@@ -1,3 +1,10 @@
+{-|
+Module      : Choice
+Description : Class of types that support symbolic selection
+Copyright   : (c) Eric Mertens, 2018
+License     : ISC
+Maintainer  : emertens@gmail.com
+-}
 module Choice where
 
 -- base

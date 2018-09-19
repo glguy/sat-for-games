@@ -1,11 +1,32 @@
+{-|
+Module      : Zhed
+Description : Solver for Zhed puzzle
+Copyright   : (c) Eric Mertens, 2018
+License     : ISC
+Maintainer  : emertens@gmail.com
+
+This module implements a solver for the Zhed puzzle game.
+
+In Zhed the player is presented with a grid of cells that can be either
+marked or unmarked. Additionally one or more cells will be designated
+as the target cell. In the initial puzzle state each of the pre-marked
+cells will have a number on it. Each of these numbered cells can be activated
+exactly once. When activated a cardinal direction is chosen. The number
+indicates how many of the nearest, unmarked cells will become marked.
+
+The puzzle is considered solved when a target cell is marked.
+
+https://play.google.com/store/apps/details?id=com.groundcontrol.zhed&hl=en_US
+
+-}
 module Zhed where
 
 -- base
 import           Prelude ()
+import           Control.Monad      (replicateM)
 import           Data.Char          (digitToInt, isDigit)
 import           Data.Foldable      (foldl')
 import           Data.List.NonEmpty (NonEmpty((:|)))
-import           Data.Traversable   (for)
 
 -- sat-for-games
 import           Ersatz.Prelude
@@ -29,9 +50,10 @@ data Dim = Dim { width, height :: Int }
 
 -- | Puzzle parameters: board dimensions, numbered cells, target cells
 data Puzzle = Puzzle Dim [(Coord,Int)] [Coord]
+  deriving (Read, Show, Ord, Eq)
 
-exampleZhed :: Puzzle
-exampleZhed = parsePuzzle
+largeZhed :: Puzzle
+largeZhed = parsePuzzle
   "..2.....\n\
   \.......4\n\
   \2.....1.\n\
@@ -43,30 +65,71 @@ exampleZhed = parsePuzzle
 
 smallZhed :: Puzzle
 smallZhed = parsePuzzle
-  "..2\n\
+  "..1\n\
   \2..\n\
   \..X\n"
 
+hardZhed :: Puzzle
+hardZhed = parsePuzzle
+  "X...........1\n\
+  \.............\n\
+  \.............\n\
+  \.............\n\
+  \.112.111.121.\n\
+  \.1...1...2...\n\
+  \.222.112.212.\n\
+  \.1.1.2.2.1.2.\n\
+  \.111.121.111.\n\
+  \....7...7....\n"
+
+harderZhed :: Puzzle
+harderZhed = parsePuzzle
+  "1...........X\n\
+  \.............\n\
+  \.1..1..1..1..\n\
+  \..1..1..1..1.\n\
+  \.1..1..1..1..\n\
+  \.............\n\
+  \..2.2...3.2..\n\
+  \.3.3.2.3.1.1.\n\
+  \.2...3.1...3.\n\
+  \..3.2...2.2..\n\
+  \...3.....2...\n\
+  \.............\n\
+  \...6..9..6...\n"
+
+
 ------------------------------------------------------------------------
 
-cellsFromList :: Boolean a => [Coord] -> TotalMap Coord a
+-- | Construct a mapping from coordinates to bits suitable for use as a
+-- symbolic set.
+cellsFromList ::
+  [Coord]            {- ^ coordinate list                 -} ->
+  TotalMap Coord Bit {- ^ map listed coordinates set true -}
 cellsFromList xs = TotalMap.fromList false [(x,true) | x <- xs]
 
 
-coordsList :: Dim -> Coord -> Dir -> [Coord]
+-- | Produce a list of coordinates generated starting at a given
+-- location, traveling in a given direction, until the edge of
+-- the board is reached. The starting location is not included.
+coordsList ::
+  Dim     {- ^ board dimensions                      -} ->
+  Coord   {- ^ starting coordinate                   -} ->
+  Dir     {- ^ direction                             -} ->
+  [Coord] {- ^ list of coordinates in that direction -}
 coordsList dim (C x y) dir =
   case dir of
-    U -> [ C x i | i <- [ y-1, y-2 .. 0              ] ]
-    L -> [ C i y | i <- [ x-1, x-2 .. 0              ] ]
-    D -> [ C x i | i <- [ y+1, y+2 .. height dim - 1 ] ]
-    R -> [ C i y | i <- [ x+1, x+2 .. width  dim - 1 ] ]
+    U -> [ C x i | i <- [ y-1, y-2 .. 1          ] ]
+    L -> [ C i y | i <- [ x-1, x-2 .. 1          ] ]
+    D -> [ C x i | i <- [ y+1, y+2 .. height dim ] ]
+    R -> [ C i y | i <- [ x+1, x+2 .. width  dim ] ]
 
 
 applyMove ::
-  Dim                      {- ^ board dimensions -} ->
-  TotalMap Coord Bit       {- ^ filled cells     -} ->
-  Select (Coord, Int, Dir) {- ^ chosen move      -} ->
-  TotalMap Coord Bit       {- ^ updated cells    -}
+  Dim                      {- ^ board dimensions            -} ->
+  TotalMap Coord Bit       {- ^ filled cells                -} ->
+  Select (Coord, Int, Dir) {- ^ chosen square and direction -} ->
+  TotalMap Coord Bit       {- ^ updated cells               -}
 applyMove dim cells move =
   runSelect $
     do (start, len, dir) <- move
@@ -91,31 +154,37 @@ spreadCell len (used, cells) coord = (used', cells')
     cells' = TotalMap.assign coord new cells
 
 
+combineChoices :: Select (Coord, Int) -> Select Dir -> Select (Coord, Int, Dir)
+combineChoices selectSq selectDir =
+  do (coord, n) <- selectSq
+     dir        <- selectDir
+     return (coord, n, dir)
+
+
 solutionExists ::
   Puzzle ->
   Ersatz [Select (Coord, Int, Dir)]
 solutionExists (Puzzle dim squares targets) =
 
-  do -- Choose an order for the solution sequence
-     order <- selectPermutationN (length squares) squares
+  do let n = length squares
 
-     -- Choose a direction for each square in the solution sequence
-     orderDirs <-
-       for order $ \s ->
-         do d <- selectList (U:|[D,L,R])
-            return $ do (x,y) <- s
-                        z     <- d
-                        return (x,y,z)
+     -- Choose an order to active the squares
+     squares' <- selectPermutationN n squares
+
+     -- Choose an order to active the squares
+     dirs <- replicateM n (selectList (U:|[D,L,R]))
+
+     let steps = zipWith combineChoices squares' dirs
+
+     let initialCells = cellsFromList [c | (c,_) <- squares]
 
      -- compute covered cells after applying the chosen moves
-     let board = foldl' (applyMove dim)
-                        (cellsFromList [ c | (c,_) <- squares ])
-                        orderDirs
+     let finalCells   = foldl' (applyMove dim) initialCells steps
 
      -- Check that at least one target is covered
-     assert (any (\target -> TotalMap.lookup target board) targets)
+     assert (any (`TotalMap.lookup` finalCells) targets)
 
-     return orderDirs
+     return steps
 
 
 findSolution :: Puzzle -> IO (Maybe [(Coord, Int, Dir)])

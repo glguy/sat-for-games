@@ -1,9 +1,24 @@
+{-|
+Module      : TotalMap
+Description : Ordered maps with a default value
+Copyright   : (c) Eric Mertens, 2018
+License     : ISC
+Maintainer  : emertens@gmail.com
+
+This module implements a total, ordered map. Upon construction of
+a new map, a default value must be specified. This value will be
+returned for any lookup that has not otherwise been assigned.
+
+Having a built-in default value is particularly useful when working
+with symbolic values as ensures every key has a value, so the structure
+of the map will not depend on symbolic values.
+
+-}
 module TotalMap
   ( TotalMap
   , fromList
   , lookup
   , assign
-  , revert
   ) where
 
 import           Prelude hiding (lookup)
@@ -28,7 +43,7 @@ data TotalMap k v = TotalMap v !(Map k v)
 -- >>> fromList 0 [('a',1), ('a',2)]
 -- fromList 0 [('a',2)]
 -- >>> fromList 0 [('a',0)]
--- fromList 0 [('0',0)]
+-- fromList 0 [('a',0)]
 fromList ::
   Ord k =>
   v       {- ^ default value            -} ->
@@ -57,17 +72,6 @@ lookup key (TotalMap def m) = Map.findWithDefault def key m
 -- 2
 assign :: Ord k => k -> v -> TotalMap k v -> TotalMap k v
 assign k v (TotalMap def m) = TotalMap def (Map.insert k v m)
-
-
--- | Revert the value at a key back to its default.
---
--- >>> let m = fromList 0 [('a',1), ('b',2)]
--- >>> lookup 'b' (revert 'b' m)
--- 0
--- >>> lookup 'a' (revert 'b' m)
--- 1
-revert :: Ord k => k -> TotalMap k v -> TotalMap k v
-revert k (TotalMap def m) = TotalMap def (Map.delete k m)
 
 
 instance (Ord k, Choice v) => Choice (TotalMap k v) where

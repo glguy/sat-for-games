@@ -1,13 +1,22 @@
 {-# Language TypeFamilies #-}
+{-|
+Module      : Count
+Description : Symbolic operations for counting increments and decrements.
+Copyright   : (c) Eric Mertens, 2018
+License     : ISC
+Maintainer  : emertens@gmail.com
+-}
 module Count
   ( Count
   , increment
+  , decrement
   , addBit
   ) where
 
 -- base
 import Prelude ()
 import Control.Monad (mzero)
+import Data.List (elemIndex)
 
 -- sat-for-games
 import Ersatz.Prelude
@@ -20,16 +29,18 @@ newtype Count = Count [Bit] deriving Show
 
 ------------------------------------------------------------------------
 
+-- | 'encode' treats negative inputs as zero
 instance Codec Count where
 
   type Decoded Count = Int
 
   encode i = Count (replicate i false ++ [true])
 
-  decode sol (Count xs) = foldr go (const mzero) xs 0
-    where
-      go x rec i = do b <- decode sol x
-                      if b then return i else rec $! i+1
+  decode sol (Count xs) =
+    do xs' <- traverse (decode sol) xs
+       case elemIndex True xs' of
+         Nothing -> mzero
+         Just i  -> return i
 
 ------------------------------------------------------------------------
 
@@ -38,13 +49,20 @@ instance Choice Count where
     where
       go (x:xs) (y:ys) = choice x y b : go xs ys
       go xs     []     = map (not b &&) xs
-      go []     ys     = map (b     &&) ys
+      go []     ys     = map (    b &&) ys
 
+------------------------------------------------------------------------
 
 -- | Increment the value of a 'Count' by one.
 increment :: Count -> Count
 increment (Count xs) = Count (false : xs)
 
+-- | Decrement the value of a 'Count' by one. Decrement of zero is zero.
+decrement :: Count -> Count
+decrement (Count xs) =
+  case xs of
+    b0:b1:bs -> Count ((b0 || b1) : bs)
+    _        -> Count [true]
 
 -- | Add a bit representing a zero or one to the count.
 addBit :: Count -> Bit -> Count
