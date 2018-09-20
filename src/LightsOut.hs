@@ -45,6 +45,12 @@ exampleLightsOut = parsePuzzle
   \.*...*....*....*..\n\
   \***..***..*....*..\n"
 
+smallLightsOut :: LightsOut
+smallLightsOut = parsePuzzle
+  "**.\n\
+  \*.*\n\
+  \.**\n"
+
 unsolvableLightsOut :: LightsOut
 unsolvableLightsOut = parsePuzzle
   "*....\n\
@@ -76,6 +82,9 @@ data Dimensions = Dimensions { dimWidth, dimHeight :: Int }
   deriving (Eq, Ord, Show, Read)
 
 -- | Generate a list of all coordinates in a board of the given size.
+--
+-- >>> dimCoords (Dimensions 3 2)
+-- [C 1 1,C 1 2,C 2 1,C 2 2,C 3 1,C 3 2]
 dimCoords :: Dimensions -> [Coord]
 dimCoords (Dimensions w h) = [ C x y | x <- [1..w], y <- [1..h] ]
 
@@ -95,10 +104,9 @@ existsSolution dim = sequenceA mapOfExists
 -- lights being turned off. A clicked coordinate corresponds to an
 -- entry in the given map with a 'true' value.
 isValidSolution ::
-  Boolean b   {- supports Bit and Bool -} =>
-  LightsOut   {- ^ puzzle              -} ->
-  Map Coord b {- ^ clicked coordinates -} ->
-  b           {- ^ solution is valid   -}
+  LightsOut     {- ^ puzzle              -} ->
+  Map Coord Bit {- ^ clicked coordinates -} ->
+  Bit           {- ^ solution is valid   -}
 isValidSolution puzzle vars = allOff
   where
     allOff         = all (not . isOn) (Map.keys vars)
