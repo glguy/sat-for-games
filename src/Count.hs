@@ -65,8 +65,8 @@ decrement (Count xs) =
     _        -> Count [true]
 
 -- | Add a bit representing a zero or one to the count.
-addBit :: Count -> Bit -> Count
-addBit count = choice count (increment count)
+addBit :: Bit -> Count -> Count
+addBit bit count = choice count (increment count) bit
 
 ------------------------------------------------------------------------
 
@@ -75,8 +75,21 @@ instance Equatable Count where
 
 ------------------------------------------------------------------------
 
+-- | Construct a comparison on 'Count' given a function with access to
+-- three pieces of information:
+--
+-- 1. Is the left argument zero?
+--
+-- 2. Is the right argument zero?
+--
+-- 3. When neither argument is zero, what is the result of comparing
+--    each number decremented by one.
+foldComparison ::
+  Bit                        {- ^ base case                                   -} ->
+  (Bit -> Bit -> Bit -> Bit) {- ^ left is zero, right is zero, recursive case -} ->
+  Count -> Count -> Bit      {- ^ comparison function                         -}
+foldComparison z f (Count l) (Count r) = foldr (uncurry f) z (zip l r)
+
 instance Orderable Count where
-  Count l <? Count r = go l r
-    where
-      go (x:xs) (y:ys) = not y && (x || go xs ys)
-      go _ _           = false
+  (<? ) = foldComparison false $ \x y next -> not y && (x || next)
+  (<=?) = foldComparison true  $ \x y next -> x || not y && next

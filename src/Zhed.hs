@@ -1,11 +1,11 @@
 {-|
 Module      : Zhed
-Description : Solver for Zhed puzzle
+Description : Solver for Zhed
 Copyright   : (c) Eric Mertens, 2018
 License     : ISC
 Maintainer  : emertens@gmail.com
 
-This module implements a solver for the Zhed puzzle game.
+This module implements a solver for the Zhed game.
 
 In Zhed the player is presented with a grid of cells that can be either
 marked or unmarked. Additionally one or more cells will be designated
@@ -17,6 +17,8 @@ indicates how many of the nearest, unmarked cells will become marked.
 The puzzle is considered solved when a target cell is marked.
 
 https://play.google.com/store/apps/details?id=com.groundcontrol.zhed&hl=en_US
+
+For more puzzle files, see https://github.com/glguy/5puzzle/tree/master/zhed-puzzles
 
 -}
 module Zhed where
@@ -32,7 +34,7 @@ import           Data.List.NonEmpty (NonEmpty((:|)))
 import           Ersatz.Prelude
 import           Count    (Count, addBit)
 import           Select   (Select, runSelect, selectPermutationN, selectList)
-import           TotalMap (TotalMap, fromList, assign, lookup)
+import           TotalMap (TotalMap, fromList, (!), (=:))
 
 -- | Grid coordinate
 data Coord = C Int Int -- ^ column row
@@ -47,7 +49,7 @@ data Dir
   deriving (Read, Show, Ord, Eq)
 
 -- | Board dimensions
-data Dim = Dim { width, height :: Int }
+data Dim = Dim Int Int -- ^ width height
   deriving (Read, Show, Ord, Eq)
 
 ------------------------------------------------------------------------
@@ -82,23 +84,44 @@ smallZhed = parsePuzzle
 cellsFromList ::
   [Coord]            {- ^ coordinate list                 -} ->
   TotalMap Coord Bit {- ^ map listed coordinates set true -}
-cellsFromList xs = TotalMap.fromList false [(x,true) | x <- xs]
+cellsFromList xs = fromList false [(x,true) | x <- xs]
 
 
 -- | Produce a list of coordinates generated starting at a given
 -- location, traveling in a given direction, until the edge of
 -- the board is reached. The starting location is not included.
+--
+-- Valid locations are considered to be from @1@ to the height
+-- or width.
+--
+-- Examples
+--
+-- @
+-- ....
+-- ....
+-- .S..
+-- @
+--
+-- >>> let dim = Dim 4 3; s = C 2 3
+-- >>> coordsList dim s U
+-- [C 2 2,C 2 1]
+-- >>> coordsList dim s D
+-- []
+-- >>> coordsList dim s L
+-- [C 1 3]
+-- >>> coordsList dim s R
+-- [C 3 3,C 4 3]
 coordsList ::
   Dim     {- ^ board dimensions                      -} ->
   Coord   {- ^ starting coordinate                   -} ->
   Dir     {- ^ direction                             -} ->
   [Coord] {- ^ list of coordinates in that direction -}
-coordsList dim (C x y) dir =
+coordsList (Dim w h) (C x y) dir =
   case dir of
-    U -> [ C x i | i <- [ y-1, y-2 .. 1          ] ]
-    L -> [ C i y | i <- [ x-1, x-2 .. 1          ] ]
-    D -> [ C x i | i <- [ y+1, y+2 .. height dim ] ]
-    R -> [ C i y | i <- [ x+1, x+2 .. width  dim ] ]
+    U -> [ C x i | i <- [ y-1, y-2 .. 1 ] ]
+    L -> [ C i y | i <- [ x-1, x-2 .. 1 ] ]
+    D -> [ C x i | i <- [ y+1, y+2 .. h ] ]
+    R -> [ C i y | i <- [ x+1, x+2 .. w ] ]
 
 
 -- | Given a board's dimensions and the map of cells, update
@@ -109,7 +132,7 @@ applyMove ::
   Select (Coord, Int, Dir) {- ^ chosen square and direction -} ->
   TotalMap Coord Bit       {- ^ updated cells               -}
 applyMove dim cells move =
-  runSelect $
+  runSelect $ -- resolve choice of boards into a single board
     do (start, len, dir) <- move
        let (_,cells') = foldl'
                           (spreadCell len)
@@ -126,13 +149,13 @@ spreadCell ::
   (Count, TotalMap Coord Bit) {- ^ squares placed and current board  -} ->
   Coord                       {- ^ coordinate to place on            -} ->
   (Count, TotalMap Coord Bit) {- ^ updated placement count and board -}
-spreadCell len (used, cells) coord = (used', cells')
+spreadCell len (used, cells) coord = (updateUsed used, updateCells cells)
   where
-    old = TotalMap.lookup coord cells
-    new = old || used <? encode len
+    oldMark = cells ! coord
+    newMark = oldMark || used <? encode len
 
-    used'  = addBit used (not old)
-    cells' = TotalMap.assign coord new cells
+    updateUsed  = addBit (not oldMark)
+    updateCells = coord =: newMark
 
 
 -- | Combine the choice of square to activate with a direction to
@@ -154,38 +177,47 @@ solutionExists (Puzzle dim squares targets) =
 
   do let n = length squares
 
-     -- Choose an order to active the squares
+     -- Choose a permutation of the squares
      squares' <- selectPermutationN n squares
 
-     -- Choose an order to active the squares
+     -- Choose a direction in which to activate each square
      dirs <- replicateM n (selectList (U:|[D,L,R]))
 
+     -- Combine choosen squares and directions into single choice
      let steps = zipWith combineChoices squares' dirs
 
+     -- Initially only squares with numbers are marked
      let initialCells = cellsFromList [c | (c,_) <- squares]
 
-     -- compute covered cells after applying the chosen moves
-     let finalCells   = foldl' (applyMove dim) initialCells steps
+     -- Compute covered cells after applying the chosen moves
+     let finalCells = foldl' (applyMove dim) initialCells steps
 
      -- Check that at least one target is covered
-     assert (any (`TotalMap.lookup` finalCells) targets)
+     assert (any (finalCells !) targets)
 
      return steps
 
 
 -- | Run the SAT solver on the solution generated by 'solutionExists'
+--
+-- >>> findSolution smallZhed
+-- Just [(C 1 2,2,R),(C 3 1,1,D)]
 findSolution :: Puzzle -> IO (Maybe [(Coord, Int, Dir)])
 findSolution = solve . solutionExists
 
 
 -- | Solve a given Zhed puzzle and print the solution to stdout.
+--
+-- >>> zhed smallZhed
+--  .  .  2v
+--  1> .  .
+--  .  .  X
 zhed :: Puzzle -> IO ()
 zhed puzzle =
   do result <- findSolution puzzle
      case result of
-       Nothing -> putStrLn "No solution"
-       Just solution ->
-         putStr (renderSolution puzzle solution)
+       Nothing       -> putStrLn "No solution"
+       Just solution -> putStr (renderSolution puzzle solution)
 
 ------------------------------------------------------------------------
 
@@ -221,7 +253,7 @@ renderSolution ::
   Puzzle              {- ^ puzzle            -} ->
   [(Coord, Int, Dir)] {- ^ solution order    -} ->
   String              {- ^ rendered solution -}
-renderSolution (Puzzle dim squares targets) steps
+renderSolution (Puzzle (Dim w h) squares targets) steps
   = mapToString
   $ stage addTarget targets
   $ stage addStep   steps'
@@ -232,17 +264,16 @@ renderSolution (Puzzle dim squares targets) steps
     stage f xs m = foldr f m xs
 
     -- replace square number with sequence number
-    steps' = [ (xy, i, dir) | (i, (xy, _, dir)) <- zip [1 :: Int ..] steps]
+    steps' = [ (xy, i::Int, dir) | (i, (xy, _, dir)) <- zip [1..] steps]
 
-    addTarget xy         = TotalMap.assign xy " X "
-    addSquare (xy,_)     = TotalMap.assign xy " # "
-    addStep (xy, n, dir) = TotalMap.assign xy (pad ++ show n ++ showDir dir)
+    addTarget xy         = xy =: " X "
+    addSquare (xy, _)    = xy =: " # "
+    addStep (xy, n, dir) = xy =: pads (shows n (showDir dir))
       where
-        pad = if n < 10 then " " else ""
+        pads = if n < 10 then (' ':) else id
 
     showDir d = case d of U -> "^"; D -> "v"; L -> "<"; R -> ">"
 
     mapToString m =
-      unlines [ concat [ TotalMap.lookup (C x y) m
-                       | x <- [1 .. width dim] ]
-              | y <- [1 .. height dim] ]
+      unlines [ concat [m ! C x y | x <- [1 .. w]]
+              | y <- [1 .. h] ]

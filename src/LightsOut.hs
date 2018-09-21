@@ -33,7 +33,7 @@ import           Ersatz.Prelude
 
 -- | Specification of a Lights Out puzzle
 data LightsOut = LightsOut
-  { dimensions :: Dimensions
+  { dimensions :: Dim
   , lightsOn   :: Set Coord }
   deriving Show
 
@@ -70,6 +70,9 @@ data Coord = C Int Int -- ^ column row
 
 -- | Cardinal direction neighborhood for a coordinate. Results include
 -- the given coordinate.
+--
+-- >>> neighborhood (C 2 3)
+-- [C 2 2,C 1 3,C 2 3,C 3 3,C 2 4]
 neighborhood ::
   Coord   {- ^ coordinate                     -} ->
   [Coord] {- ^ north, west, self, east, south -}
@@ -81,21 +84,21 @@ neighborhood (C x y) =
 ------------------------------------------------------------------------
 
 -- | Board dimensions
-data Dimensions = Dimensions { dimWidth, dimHeight :: Int }
+data Dim = Dim Int Int -- ^ width height
   deriving (Eq, Ord, Show, Read)
 
 -- | Generate a list of all coordinates in a board of the given size.
 --
--- >>> dimCoords (Dimensions 3 2)
+-- >>> dimCoords (Dim 3 2)
 -- [C 1 1,C 1 2,C 2 1,C 2 2,C 3 1,C 3 2]
-dimCoords :: Dimensions -> [Coord]
-dimCoords (Dimensions w h) = [ C x y | x <- [1..w], y <- [1..h] ]
+dimCoords :: Dim -> [Coord]
+dimCoords (Dim w h) = [C x y | x <- [1..w], y <- [1..h]]
 
 ------------------------------------------------------------------------
 
 -- | Generate a map associating coordinates that can be toggled with
 -- whether or not that coordinate was toggled.
-existsSolution :: Dimensions -> Ersatz (Map Coord Bit)
+existsSolution :: Dim -> Ersatz (Map Coord Bit)
 existsSolution dim = sequenceA mapOfExists
   where
     mapOfExists :: Map Coord (Ersatz Bit)
@@ -126,6 +129,9 @@ isValidSolution puzzle vars = allOff
 
 -- | Find a solution to the given puzzle that also satisfies
 -- an additional predicate if one exists.
+--
+-- >>> findSolution smallLightsOut
+-- Just (fromList [(C 1 1,True),(C 1 2,False),(C 1 3,False),(C 2 1,False),(C 2 2,False),(C 2 3,False),(C 3 1,False),(C 3 2,False),(C 3 3,True)])
 findSolution ::
   LightsOut                   {- ^ puzzle                 -} ->
   IO (Maybe (Map Coord Bool)) {- ^ solution if one exists -}
@@ -137,6 +143,11 @@ findSolution puzzle =
 
 
 -- | Attempt to solve the given puzzle and print the solution to stdout.
+--
+-- >>> lightsOut smallLightsOut 
+-- *..
+-- ...
+-- ..*
 lightsOut ::
   LightsOut {- ^ puzzle                   -} ->
   IO ()     {- ^ print solution to puzzle -}
@@ -160,8 +171,11 @@ lightsOut puzzle =
 -- .*..
 -- ...*
 -- @
+--
+-- >>> parsePuzzle "*.*.\n.*..\n...*\n"
+-- LightsOut {dimensions = Dim 4 3, lightsOn = fromList [C 1 1,C 2 2,C 3 1,C 4 3]}
 parsePuzzle :: String -> LightsOut
-parsePuzzle input = LightsOut (Dimensions w h) (Set.fromList coords)
+parsePuzzle input = LightsOut (Dim w h) (Set.fromList coords)
   where
     rows = lines input
     w    = maximum (0 : map length rows)
@@ -173,11 +187,11 @@ parsePuzzle input = LightsOut (Dimensions w h) (Set.fromList coords)
 
 -- | Render a lights out puzzle using @.@ and @*@ as in 'parsePuzzle'.
 renderSolution ::
-  Dimensions     {- ^ board dimensions  -} ->
+  Dim            {- ^ board dimensions  -} ->
   Map Coord Bool {- ^ solution map      -} ->
   String         {- ^ rendered solution -}
-renderSolution dim coords =
+renderSolution (Dim w h) coords =
   unlines
     [ [ if coords Map.! C x y then '*' else '.'
-      | x <- [1 .. dimWidth dim] ]
-    |  y <- [1 .. dimHeight dim] ]
+      | x <- [1 .. w] ]
+    |  y <- [1 .. h] ]

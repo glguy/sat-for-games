@@ -13,19 +13,30 @@ Having a built-in default value is particularly useful when working
 with symbolic values as ensures every key has a value, so the structure
 of the map will not depend on symbolic values.
 
+To construct new 'TotalMap' values, use 'fromList' and 'pure'.
+
+To update 'TotalMap' values, use ('=:') and 'fmap'.
+
+To query 'TotalMap' values, use ('!').
+
+To combine 'TotalMap' values, use 'choice' and ('<*>').
+
 -}
 module TotalMap
   ( TotalMap
   , fromList
-  , lookup
-  , assign
+  , (!)
+  , (=:)
   ) where
 
-import           Prelude hiding (lookup)
+-- base
+import           Control.Applicative (liftA2)
 
+-- containers
 import qualified Data.Map as Map
 import           Data.Map (Map)
 
+-- sat-for-games
 import           Choice (Choice(choice))
 
 -- | A total map behaves like a function that can be efficiently updated.
@@ -55,36 +66,58 @@ fromList def xs = TotalMap def (Map.fromList xs)
 -- | Lookup the value associated with a given key in the map.
 --
 -- >>> let m = fromList 0 [('a',1), ('b',2)]
--- >>> lookup 'b' m
+-- >>> m ! 'b'
 -- 2
--- >>> lookup 'c' m
+-- >>> m ! 'c'
 -- 0
-lookup :: Ord k => k -> TotalMap k v -> v
-lookup key (TotalMap def m) = Map.findWithDefault def key m
+(!) :: Ord k => TotalMap k v -> k -> v
+TotalMap def m ! key = Map.findWithDefault def key m
 
 
 -- | Assign a new value to a given key in a map.
 --
 -- >>> let m = fromList 0 [('a',1), ('b',2)]
--- >>> lookup 'b' (assign 'b' 10 m)
+-- >>> ('b' =: 10) m ! 'b'
 -- 10
--- >>> lookup 'b' (assign 'c' 10 m)
+-- >>> ('c' =: 10) m ! 'b'
 -- 2
-assign :: Ord k => k -> v -> TotalMap k v -> TotalMap k v
-assign k v (TotalMap def m) = TotalMap def (Map.insert k v m)
+(=:) :: Ord k => k -> v -> TotalMap k v -> TotalMap k v
+(k =: v) (TotalMap def m) = TotalMap def (Map.insert k v m)
 
+------------------------------------------------------------------------
 
 -- | Symbolic choice between the values stored at each key.
 instance (Ord k, Choice v) => Choice (TotalMap k v) where
-  choice (TotalMap fDef fMap) (TotalMap tDef tMap) b =
-    TotalMap
-      (choice fDef tDef b)
-      (Map.mergeWithKey
-         (\_key f t -> Just (choice f t b))
-         (fmap (\f -> choice f tDef b))
-         (fmap (\t -> choice fDef t b))
-         fMap tMap)
+  choice x y b = liftA2 (\v u -> choice v u b) x y
 
+------------------------------------------------------------------------
+
+-- | This instance allows you to apply a function to the values
+-- stored in the total map.
+instance Functor (TotalMap k) where
+  fmap f (TotalMap def m) = TotalMap (f def) (fmap f m)
+
+-- | This instance provides point-wise application between
+-- two total maps. The meaning of 'pure' is to provide a map
+-- that always returns the given value.
+instance Ord k => Applicative (TotalMap k) where
+  pure def = TotalMap def Map.empty
+  TotalMap fDef fMap <*> TotalMap xDef xMap =
+    TotalMap
+      (fDef xDef)
+      (Map.mergeWithKey
+         (\_key f x -> Just (f x))
+         (fmap (\f -> f xDef)) -- use default argument
+         (fmap (\x -> fDef x)) -- use default function
+         fMap xMap)
+
+-- No Monad instance is provided because this would require us to be
+-- able to enumerate all of the keys in the first argument to (>>=).
+-- Enumerating all of the keys to see what the behavior of the second
+-- argument of (>>=) might do with them goes beyond the functionality
+-- of the 'TotalMap' type.
+
+------------------------------------------------------------------------
 
 -- | Show 'TotalMap' using 'fromList' syntax.
 --
