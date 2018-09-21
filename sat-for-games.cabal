@@ -1,7 +1,6 @@
 name:                sat-for-games
 version:             0.1.0.0
 synopsis:            Introduction to using SAT to solve games
-description:         Introduction to using SAT to solve games
 license:             ISC
 license-file:        LICENSE
 author:              Eric Mertens
@@ -10,6 +9,33 @@ copyright:           2018 Eric Mertens
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       1.12
+
+description:
+      Introduction to using SAT to solve games.
+      .
+      This package provides the "Ersatz.Prelude" module as a
+      convenient way to import most of the things you'll need
+      while using Ersatz.
+      .
+      The "LightsOut" module provides a simpler example of a
+      game that we can solve using a SAT solver. This game only
+      requires us to xor the right elements from a grid together.
+      .
+      The "Zhed" module provides a more complex example of a
+      game that we can solve using a SAT solver. This game will
+      take us through counting, symbolic choice from a map,
+      and symbolic choice of normal, concrete Haskell values.
+      .
+      The "TotalMap" module provides a useful abstraction built
+      on top of the standard "Data.Map" module. This will allow
+      us to attach a default value to a map.
+      .
+      The "Select" module will allow us to make symbolic choices
+      from a list of values. This will help us to avoid having
+      to make many one-off 'Codec' and 'Variable' instances.
+      .
+      The "Choice" module will provide an abstraction for types
+      that support symbolic choice between two alternatives.
 
 library
   exposed-modules:   LightsOut, Zhed,

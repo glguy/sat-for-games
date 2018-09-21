@@ -37,6 +37,7 @@ data LightsOut = LightsOut
   , lightsOn   :: Set Coord }
   deriving Show
 
+-- | Example puzzle that spells ICFP.
 exampleLightsOut :: LightsOut
 exampleLightsOut = parsePuzzle
   "***..***..***..**.\n\
@@ -45,12 +46,14 @@ exampleLightsOut = parsePuzzle
   \.*...*....*....*..\n\
   \***..***..*....*..\n"
 
+-- | Small 3-by-3 puzzle
 smallLightsOut :: LightsOut
 smallLightsOut = parsePuzzle
   "**.\n\
   \*.*\n\
   \.**\n"
 
+-- | Example of a puzzle that has no solution.
 unsolvableLightsOut :: LightsOut
 unsolvableLightsOut = parsePuzzle
   "*....\n\
@@ -149,6 +152,14 @@ lightsOut puzzle =
 
 -- | Parse a lights out puzzle encoded as lines of @.@ for off and
 -- @*@ for on.
+--
+-- Example input
+--
+-- @
+-- *.*.
+-- .*..
+-- ...*
+-- @
 parsePuzzle :: String -> LightsOut
 parsePuzzle input = LightsOut (Dimensions w h) (Set.fromList coords)
   where
@@ -161,7 +172,10 @@ parsePuzzle input = LightsOut (Dimensions w h) (Set.fromList coords)
 
 
 -- | Render a lights out puzzle using @.@ and @*@ as in 'parsePuzzle'.
-renderSolution :: Dimensions -> Map Coord Bool -> String
+renderSolution ::
+  Dimensions     {- ^ board dimensions  -} ->
+  Map Coord Bool {- ^ solution map      -} ->
+  String         {- ^ rendered solution -}
 renderSolution dim coords =
   unlines
     [ [ if coords Map.! C x y then '*' else '.'

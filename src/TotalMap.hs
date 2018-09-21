@@ -74,6 +74,7 @@ assign :: Ord k => k -> v -> TotalMap k v -> TotalMap k v
 assign k v (TotalMap def m) = TotalMap def (Map.insert k v m)
 
 
+-- | Symbolic choice between the values stored at each key.
 instance (Ord k, Choice v) => Choice (TotalMap k v) where
   choice (TotalMap fDef fMap) (TotalMap tDef tMap) b =
     TotalMap
@@ -86,6 +87,9 @@ instance (Ord k, Choice v) => Choice (TotalMap k v) where
 
 
 -- | Show 'TotalMap' using 'fromList' syntax.
+--
+-- >>> show (fromList 0 [('a',1)])
+-- "fromList 0 [('a',1)]"
 instance (Show k, Show v) => Show (TotalMap k v) where
   showsPrec p (TotalMap def m)
     = showParen (p >= 11)
@@ -93,3 +97,15 @@ instance (Show k, Show v) => Show (TotalMap k v) where
     . showsPrec 11 def
     . showString " "
     . shows (Map.toList m)
+
+-- | Read 'TotalMap' using 'fromList' syntax.
+--
+-- >>> read "fromList 0 [('a',1)]" :: TotalMap Char Int
+-- fromList 0 [('a',1)]
+instance (Ord k, Read k, Read v) => Read (TotalMap k v) where
+  readsPrec p =
+    readParen (p >= 11) $ \s ->
+      [ (fromList x y, s3)
+        | ("fromList", s1) <- lex s
+        , (x,s2) <- readsPrec 11 s1
+        , (y,s3) <- readsPrec 11 s2 ]
