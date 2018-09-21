@@ -2,6 +2,10 @@
 
 This repository is support material for the ICFP 2018 Tutorial track
 
+## Notice!
+
+The repository is currently in a completed state. I intend to remove portions of the code to serve as tutorial exercises during the session.
+
 ## Building the project
 
 To build this repository you'll need a recent version of GHC, cabal-install, and minisat.
