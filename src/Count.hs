@@ -5,6 +5,25 @@ Description : Symbolic operations for counting increments and decrements.
 Copyright   : (c) Eric Mertens, 2018
 License     : ISC
 Maintainer  : emertens@gmail.com
+
+This type allows us to symbolically count numbers incrementing and decrementing
+by one. Counts can be ordered and compared for equality.
+
+Use 'encode' to make constant valued counts.
+
+Use 'increment', 'decrement', and 'addBit' to update 'Count' values.
+
+>>> :{
+solve $
+  do (x,y,z) <- exists
+     let count = foldr addBit (encode 0)
+     assert (count [x,y,z] === encode 2)
+     assert (count [x,  z] === encode 1)
+     assert (count [  y,z] === encode 1)
+     return (x,y,z)
+:}
+Just (True,True,False)
+
 -}
 module Count
   ( Count

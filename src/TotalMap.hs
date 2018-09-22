@@ -59,8 +59,8 @@ data TotalMap k v = TotalMap v !(Map k v)
 -- fromList 0 [('a',0)]
 fromList ::
   Ord k =>
-  v       {- ^ default value            -} ->
-  [(k,v)] {- ^ assigned key value pairs -} ->
+  v       {- ^ default value   -} ->
+  [(k,v)] {- ^ key-value pairs -} ->
   TotalMap k v
 fromList def xs = TotalMap def (Map.fromList xs)
 

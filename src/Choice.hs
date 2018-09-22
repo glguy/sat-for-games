@@ -7,9 +7,6 @@ Maintainer  : emertens@gmail.com
 -}
 module Choice where
 
--- base
-import Data.Bool (bool)
-
 -- ersatz
 import Ersatz (Bit, choose)
 

@@ -5,6 +5,27 @@ Description : Symbolic selection of arbitrary values
 Copyright   : (c) Eric Mertens, 2018
 License     : ISC
 Maintainer  : emertens@gmail.com
+
+Symbolic selection from a finite list of alternatives. This module
+allows using normal Haskell values symbolically.
+
+We can extract the selected value using either 'runSelect' or
+'decode'.
+
+'Select' values can be symbolically compared using comparisons
+of their concrete possibilities. For example ('===') will use
+('==') on the underlying choices.
+
+>>> :{
+solve $
+  do let letters = 'a':|"bcdefg"
+     x <- selectList letters
+     y <- selectList letters
+     assert (pure 'c' <? x && x <? y && y <? pure 'f')
+     return (x,y)
+:}
+Just ('d','e')
+
 -}
 module Select
   (
@@ -24,6 +45,7 @@ import Control.Monad
 import Data.List (tails)
 import Data.List.NonEmpty (NonEmpty((:|)), nonEmpty)
 
+-- sat-for-games
 import Ersatz.Prelude
 import Choice
 
@@ -31,12 +53,14 @@ import Choice
 data Select a
   = Choose (Select a) (Select a) Bit
   | Value a
+  deriving Show
 
 -- | Delay 'choice' until 'runSelect' or 'decode'.
 instance Choice (Select a) where
   choice = Choose
 
--- | Extract the symbolic value contained in the selection.
+-- | Extract the symbolic value contained in the selection as long as the
+-- underlying values support symbolic choice.
 runSelect :: Choice a => Select a -> a
 runSelect (Value x)      = x
 runSelect (Choose f t b) = choice (runSelect f) (runSelect t) b
@@ -45,7 +69,7 @@ runSelect (Choose f t b) = choice (runSelect f) (runSelect t) b
 
 -- | Selected value can be transformed with a function.
 instance Functor Select where
-  fmap = liftA
+  fmap = liftM
 
 -- | Multiple selections can be combined into one.
 instance Applicative Select where
