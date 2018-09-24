@@ -1,3 +1,4 @@
+{-# Language QuasiQuotes #-}
 {-|
 Module      : LightsOut
 Description : Solver for Lights Out puzzle
@@ -39,28 +40,31 @@ data LightsOut = LightsOut
 
 -- | Example puzzle that spells ICFP.
 exampleLightsOut :: LightsOut
-exampleLightsOut = parsePuzzle
-  "***..***..***..**.\n\
-  \.*...*....*....*.*\n\
-  \.*...*....**...**.\n\
-  \.*...*....*....*..\n\
-  \***..***..*....*..\n"
+exampleLightsOut = parsePuzzle [str|
+  ***..***..***..**.
+  .*...*....*....*.*
+  .*...*....**...**.
+  .*...*....*....*..
+  ***..***..*....*..
+|]
 
 -- | Small 3-by-3 puzzle
 smallLightsOut :: LightsOut
-smallLightsOut = parsePuzzle
-  "**.\n\
-  \*.*\n\
-  \.**\n"
+smallLightsOut = parsePuzzle [str|
+  **.
+  *.*
+  .**
+|]
 
 -- | Example of a puzzle that has no solution.
 unsolvableLightsOut :: LightsOut
-unsolvableLightsOut = parsePuzzle
-  "*....\n\
-  \*....\n\
-  \.....\n\
-  \.....\n\
-  \.....\n"
+unsolvableLightsOut = parsePuzzle [str|
+  *....
+  *....
+  .....
+  .....
+  .....
+|]
 
 ------------------------------------------------------------------------
 

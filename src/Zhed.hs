@@ -1,3 +1,4 @@
+{-# Language QuasiQuotes #-}
 {-|
 Module      : Zhed
 Description : Solver for Zhed
@@ -60,22 +61,24 @@ data Puzzle = Puzzle Dim [(Coord,Int)] [Coord]
 
 -- | An 8-by-8 puzzle
 largeZhed :: Puzzle
-largeZhed = parsePuzzle
-  "..2.....\n\
-  \.......4\n\
-  \2.....1.\n\
-  \...1....\n\
-  \....X...\n\
-  \4.......\n\
-  \3.......\n\
-  \....1...\n"
+largeZhed = parsePuzzle [str|
+  ..2.....
+  .......4
+  2.....1.
+  ...1....
+  ....X...
+  4.......
+  3.......
+  ....1...
+|]
 
 -- | A 3-by-3 puzzle
 smallZhed :: Puzzle
-smallZhed = parsePuzzle
-  "..1\n\
-  \2..\n\
-  \..X\n"
+smallZhed = parsePuzzle [str|
+  ..1
+  2..
+  ..X
+|]
 
 ------------------------------------------------------------------------
 
@@ -181,7 +184,7 @@ solutionExists (Puzzle dim squares targets) =
      squares' <- selectPermutationN n squares
 
      -- Choose a direction in which to activate each square
-     dirs <- replicateM n (selectList (U:|[D,L,R]))
+     dirs <- replicateM n (selectList (U :| [D,L,R]))
 
      -- Combine choosen squares and directions into single choice
      let steps = zipWith combineChoices squares' dirs

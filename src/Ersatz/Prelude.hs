@@ -7,8 +7,8 @@ Copyright   : (c) Eric Mertens, 2018
 License     : ISC
 Maintainer  : emertens@gmail.com
 
-This module makes it easier to use Ersatz by reëxporting Prelude
-without collisions with Ersatz, and by providing a distinct type
+This module makes it easier to use "Ersatz" by reëxporting "Prelude"
+without collisions, and by providing a distinct type
 for building SAT problems instead of relying on MTL classes.
 
 Define your problem using 'exists' and 'assert' and then invoke
@@ -28,27 +28,38 @@ Just (5,11)
 -}
 module Ersatz.Prelude
   (
-  -- * modules
-    module Ersatz
-  , module Prelude
+  -- * Types
+    Ersatz
 
-  -- * types
-  , Ersatz
-
-  -- * operations
+  -- * Ersatz Operations
   , exists
   , assert
   , solve
   , runErsatz
 
-  -- * variable-width number operations
+  -- * Variable-width number operations
   , existsBits
+
+  -- * Template Haskell Quasi-quoter
+  , str
+
+  -- * Ersatz reëxport
+  , module Ersatz
+
+  -- * Prelude reëxport
+  , module Prelude
+
   ) where
 
 -- base
 import           Prelude hiding (and, or, any, all, (&&), (||), not)
 import           Control.Monad (replicateM)
 import           Control.Monad.IO.Class (MonadIO)
+import           Data.List (dropWhileEnd)
+
+-- template-haskell
+import           Language.Haskell.TH (stringE)
+import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 
 -- ersatz
 import           Ersatz (Boolean(..), Equatable(..), Orderable(..),
@@ -106,3 +117,61 @@ existsBits n = Bits <$> replicateM n exists
 -- it is more common and useful to use 'solve'.
 runErsatz :: Ersatz a -> IO (a, SAT)
 runErsatz (Ersatz e) = E.runSAT e
+
+------------------------------------------------------------------------
+
+-- | This quasi-quoter is handy for defining puzzle inputs directly
+-- in source files.
+--
+-- Leading and trailing blank lines will be stripped away, then
+-- the remaining lines will have their indentation stripped away.
+-- The line with the least indentation determines how much should
+-- be stripped from all lines in the quoted text.
+--
+-- >>> :set -XQuasiQuotes
+-- >>> :{
+-- [str|
+--     puzzle
+--   input
+--   text
+--   |]
+-- :}
+-- "  puzzle\ninput\ntext\n"
+--
+-- >>> :{
+-- [str|
+-- |]
+-- :}
+-- ""
+--
+-- >>> [str|single|]
+-- "single\n"
+--
+-- >>> [str||]
+-- ""
+str :: QuasiQuoter
+str = QuasiQuoter
+  { quoteExp  = stringE . strProcess
+  , quotePat  = error "str does not support patterns"
+  , quoteType = error "str does not support types"
+  , quoteDec  = error "str does not support declarations"
+  }
+
+-- | Processing function for 'str'.
+strProcess :: String -> String
+strProcess input = unlines unindentedLines
+  where
+    sp x = ' ' == x
+
+    isBlankLine = all sp
+
+    trimmedLines
+      = dropWhileEnd isBlankLine
+      $ dropWhile    isBlankLine
+      $ lines input
+
+    indentLen = length . takeWhile sp
+
+    indent = minimum (map indentLen trimmedLines)
+
+    unindentedLines = map (drop indent) trimmedLines
