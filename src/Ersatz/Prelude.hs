@@ -152,9 +152,9 @@ runErsatz (Ersatz e) = E.runSAT e
 str :: QuasiQuoter
 str = QuasiQuoter
   { quoteExp  = stringE . strProcess
-  , quotePat  = error "str does not support patterns"
-  , quoteType = error "str does not support types"
-  , quoteDec  = error "str does not support declarations"
+  , quotePat  = \_ -> fail "str does not support patterns"
+  , quoteType = \_ -> fail "str does not support types"
+  , quoteDec  = \_ -> fail "str does not support declarations"
   }
 
 -- | Processing function for 'str'.
