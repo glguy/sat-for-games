@@ -125,9 +125,7 @@ isValidSolution puzzle vars = allOff
 
     isClicked    c = Map.findWithDefault false c vars
 
-    isOn         x = foldl xor (initialState x)
-                   $ map isClicked
-                   $ neighborhood x
+    isOn         x = error "isValidSolution.isOn not implemented"
 
 ------------------------------------------------------------------------
 

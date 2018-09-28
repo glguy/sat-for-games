@@ -53,13 +53,9 @@ instance Codec Count where
 
   type Decoded Count = Int
 
-  encode i = Count (replicate i false ++ [true])
+  encode i = error "Codec.Count not implemented"
 
-  decode sol (Count xs) =
-    do xs' <- traverse (decode sol) xs
-       case elemIndex True xs' of
-         Nothing -> mzero
-         Just i  -> return i
+  decode sol (Count xs) = error "Codec.Count not implemented"
 
 ------------------------------------------------------------------------
 
@@ -74,7 +70,7 @@ instance Choice Count where
 
 -- | Increment the value of a 'Count' by one.
 increment :: Count -> Count
-increment (Count xs) = Count (false : xs)
+increment (Count xs) = error "increment not implemented"
 
 -- | Decrement the value of a 'Count' by one. Decrement of zero is zero.
 decrement :: Count -> Count
@@ -85,7 +81,7 @@ decrement (Count xs) =
 
 -- | Add a bit representing a zero or one to the count.
 addBit :: Bit -> Count -> Count
-addBit bit count = choice count (increment count) bit
+addBit bit count = error "addBit not implemented"
 
 ------------------------------------------------------------------------
 

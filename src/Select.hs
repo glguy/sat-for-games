@@ -80,8 +80,7 @@ instance Applicative Select where
 --
 -- 'fail' not supported
 instance Monad Select where
-  Choose f t b >>= k = Choose (f >>= k) (t >>= k) b
-  Value x      >>= k = k x
+  m >>= f = error "Select.Monad not implemented"
 
 ------------------------------------------------------------------------
 
@@ -114,19 +113,14 @@ instance Codec (Select a) where
 
 ------------------------------------------------------------------------
 
--- | Lift a comparison on values to be one on symbolic choices of
--- those values. This is used to implement 'Equatable' and 'Orderable'.
-liftComparison :: (a -> a -> Bool) -> Select a -> Select a -> Bit
-liftComparison (?) x y = runSelect (liftA2 (\a b -> bool (a ? b)) x y)
-
 -- | Lift equality on concrete values to equality on symbolic choices.
 instance Eq a => Equatable (Select a) where
-  (===) = liftComparison (==)
+  (===) = error "Select.Equatable not implemented"
 
 -- | Lift ordering on concrete values to ordering on symbolic choices.
 instance Ord a => Orderable (Select a) where
-  (<? ) = liftComparison (< )
-  (<=?) = liftComparison (<=)
+  (<? ) = error "Select.Orderable not implemented"
+  (<=?) = error "Select.Orderable not implemented"
 
 ------------------------------------------------------------------------
 

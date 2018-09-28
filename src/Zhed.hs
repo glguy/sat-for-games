@@ -152,22 +152,13 @@ spreadCell ::
   (Count, TotalMap Coord Bit) {- ^ squares placed and current board  -} ->
   Coord                       {- ^ coordinate to place on            -} ->
   (Count, TotalMap Coord Bit) {- ^ updated placement count and board -}
-spreadCell len (used, cells) coord = (updateUsed used, updateCells cells)
-  where
-    oldMark = cells ! coord
-    newMark = oldMark || used <? encode len
-
-    updateUsed  = addBit (not oldMark)
-    updateCells = coord =: newMark
+spreadCell len (used, cells) coord = error "spreadCell not implemented"
 
 
 -- | Combine the choice of square to activate with a direction to
 -- get back a single choice containing both.
 combineChoices :: Select (Coord, Int) -> Select Dir -> Select (Coord, Int, Dir)
-combineChoices selectSq selectDir =
-  do (coord, n) <- selectSq
-     dir        <- selectDir
-     return (coord, n, dir)
+combineChoices selectSq selectDir = error "combineChoices: not implemented"
 
 
 -- | Generate a solution that satisfies the clues in the given puzzle.
