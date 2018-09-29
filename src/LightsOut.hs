@@ -38,6 +38,17 @@ data LightsOut = LightsOut
   , lightsOn   :: Set Coord }
   deriving Show
 
+-- | Grid coordinate
+data Coord = C Int Int -- ^ column row
+  deriving (Eq, Ord, Show, Read)
+
+
+-- | Board dimensions
+data Dim = Dim Int Int -- ^ width height
+  deriving (Eq, Ord, Show, Read)
+
+------------------------------------------------------------------------
+
 -- | Example puzzle that spells ICFP.
 exampleLightsOut :: LightsOut
 exampleLightsOut = parsePuzzle [str|
@@ -57,6 +68,9 @@ smallLightsOut = parsePuzzle [str|
 |]
 
 -- | Example of a puzzle that has no solution.
+--
+-- >>> unsolvableLightsOut
+-- LightsOut {dimensions = Dim 5 5, lightsOn = fromList [C 1 1,C 1 2]}
 unsolvableLightsOut :: LightsOut
 unsolvableLightsOut = parsePuzzle [str|
   *....
@@ -67,10 +81,6 @@ unsolvableLightsOut = parsePuzzle [str|
 |]
 
 ------------------------------------------------------------------------
-
--- | Grid coordinate
-data Coord = C Int Int -- ^ column row
-  deriving (Eq, Ord, Show, Read)
 
 -- | Cardinal direction neighborhood for a coordinate. Results include
 -- the given coordinate.
@@ -85,11 +95,6 @@ neighborhood (C x y) =
   , C (x-1) y, C x y    , C (x+1) y
   ,            C x (y+1)]
 
-------------------------------------------------------------------------
-
--- | Board dimensions
-data Dim = Dim Int Int -- ^ width height
-  deriving (Eq, Ord, Show, Read)
 
 -- | Generate a list of all coordinates in a board of the given size.
 --
@@ -102,8 +107,8 @@ dimCoords (Dim w h) = [C x y | x <- [1..w], y <- [1..h]]
 
 -- | Generate a map associating coordinates that can be toggled with
 -- whether or not that coordinate was toggled.
-existsSolution :: Dim -> Ersatz (Map Coord Bit)
-existsSolution dim = sequenceA mapOfExists
+newClickMap :: Dim -> Ersatz (Map Coord Bit)
+newClickMap dim = sequenceA mapOfExists
   where
     mapOfExists :: Map Coord (Ersatz Bit)
     mapOfExists = Map.fromList [(c, exists) | c <- dimCoords dim]
@@ -117,14 +122,18 @@ isValidSolution ::
   LightsOut     {- ^ puzzle              -} ->
   Map Coord Bit {- ^ clicked coordinates -} ->
   Bit           {- ^ solution is valid   -}
-isValidSolution puzzle vars = allOff
+isValidSolution puzzle clicked = allOff
   where
-    allOff         = all (not . isOn) (Map.keys vars)
+    allOff        :: Bit
+    allOff         = all (not . isOn) (Map.keys clicked)
 
-    initialState c = bool (c `Set.member` lightsOn puzzle)
+    initialState  :: Coord -> Bit
+    initialState c = encode (c `Set.member` lightsOn puzzle)
 
-    isClicked    c = Map.findWithDefault false c vars
+    isClicked     :: Coord -> Bit
+    isClicked    c = Map.findWithDefault false c clicked
 
+    isOn          :: Coord -> Bit
     isOn         x = error "isValidSolution.isOn not implemented"
 
 ------------------------------------------------------------------------
@@ -139,14 +148,14 @@ findSolution ::
   IO (Maybe (Map Coord Bool)) {- ^ solution if one exists -}
 findSolution puzzle =
   solve $
-    do soln <- existsSolution (dimensions puzzle)
-       assert (isValidSolution puzzle soln)
-       return soln
+    do clicks <- newClickMap (dimensions puzzle)
+       assert (isValidSolution puzzle clicks)
+       return clicks
 
 
 -- | Attempt to solve the given puzzle and print the solution to stdout.
 --
--- >>> lightsOut smallLightsOut 
+-- >>> lightsOut smallLightsOut
 -- *..
 -- ...
 -- ..*
